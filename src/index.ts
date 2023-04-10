@@ -1,64 +1,76 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import fetch from 'node-fetch'
-import { load } from 'cheerio'
+import { URLSearchParams } from 'url'
+import { clearInterval, setInterval } from 'timers'
 
-const urls = {
-  blog: 'https://blog.counter-strike.net/',
-  updates: 'https://blog.counter-strike.net/index.php/category/updates/'
+const URL = 'https://store.steampowered.com/events/ajaxgetpartnereventspageable/?'
+
+// No idea how to remove this magic numbers
+const TYPE_IDS = {
+  updates: 12,
+  blog: 14
+}
+
+const INITIAL_FETCH_PARAMS = {
+  l: 'english',
+  clan_accountid: 0,
+  appid: 730,
+  offset: 0,
+  count: 100,
+  origin: 'https://www.counter-strike.net'
 }
 
 /**
- * Uses this url: "https://blog.counter-strike.net/"
- * @param index - The page index, first page (default) is 0
+ * Uses this url: "https://www.counter-strike.net/news/"
  * @returns {Promise<Post[]>}
+ * @param params
  */
-export async function getBlogPosts (index: number = 0): Promise<Post[]> {
-  let url = urls.blog
-  Boolean(index) && (url += `index.php/page/${index}/`)
-  return await getPosts(url)
+export async function getBlogPosts (params?: Partial<CSGOFetchParams>): Promise<Post[]> {
+  return await getPosts(TYPE_IDS.blog, params)
 }
 
 /**
- * Uses this url: https://blog.counter-strike.net/index.php/category/updates/
- * @param index - The page index, first page (default) is 0
+ * Uses this url: https://www.counter-strike.net/news/updates/
  * @returns {Promise<Post[]>}
+ * @param params
  */
-export async function getUpdatePosts (index: number = 0): Promise<Post[]> {
-  let url = urls.updates
-  Boolean(index) && (url += `page/${index}/`)
-  return await getPosts(url)
+export async function getUpdatePosts (params?: Partial<CSGOFetchParams>): Promise<Post[]> {
+  return await getPosts(TYPE_IDS.updates, params)
 }
 
 /**
  *
- * @param url - The url to scrape
  * @returns {Promise<Post[]>}
+ * @param category
+ * @param params
  */
-export default async function getPosts (url: string): Promise<Post[]> {
-  const res = await fetch(url)
-  const data = await res.arrayBuffer()
-  const buffer = Buffer.from(data)
-  const $ = load(buffer)
-  const postContainer = $.root().find('#post_container')
-  const innerPosts = postContainer.children().filter('.inner_post')
-  if (innerPosts.first().find('h2').text().toLowerCase() === 'bad link?') { throw new Error('No posts found') }
-  const posts = innerPosts
-    .map((_, el) => {
-      const post = $(el)
-      const title = post.find('h2').find('a').text()
-      const link = post.find('h2').find('a').attr('href')!
-      const date = new Date(post.find('p').filter('.post_date').text().split(' ')[0]!)
-      const image = post.find('p').find('img').eq(1).attr('src')
-      const content = post
-        .find('p')
-        .slice(1)
-        .toArray()
-        .map(el => $(el).text())
-        .join('\n\n')
-      return { title, link, date, image, content }
-    })
-    .toArray()
-  return posts
+export default async function getPosts (category?: number, params?: Partial<CSGOFetchParams>): Promise<Post[]> {
+  const res = await fetch(URL + new URLSearchParams({ ...INITIAL_FETCH_PARAMS, ...params } as unknown as Record<string, string>).toString(), {
+    headers: {
+      Accept: 'application/json'
+    }
+  })
+  const data = await res.json()
+  if ((params?.offset ?? 0) > 100) console.log(await res.text())
+  return data.events.filter((post: any) => !category || post.event_type === category).map((post: any) => {
+    const image: string | undefined = JSON.parse(post.jsondata ?? '{}').localized_capsule_image[0]
+    return {
+      title: post.announcement_body.headline,
+      content: post.announcement_body.body,
+      date: new Date(post.announcement_body.posttime * 1000),
+      link: 'https://www.counter-strike.net/newsentry/' + String(post.gid),
+      ...(image && { image: 'https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/clans/3381077/' + image })
+    }
+  })
+}
+
+export interface CSGOFetchParams {
+  l: 'english' | string
+  clan_accountid: 0 | number
+  appid: 730 | number
+  offset: 0 | number
+  count: 100 | number
+  origin: 'https://www.counter-strike.net' | string
 }
 
 export interface Post {
@@ -67,4 +79,33 @@ export interface Post {
   date: Date
   image?: string
   content: string
+}
+
+export class UpdatesListener {
+  private readonly intervalId: NodeJS.Timer
+  private readonly params?: Partial<CSGOFetchParams>
+  private readonly callback: (post: Post) => any
+  private lastPostTime: number
+  constructor (callback: (post: Post) => any, interval: number = 600000, params?: Partial<CSGOFetchParams>, lastPostTime?: number) {
+    this.lastPostTime = lastPostTime ?? Date.now()
+    this.params = params
+    this.callback = callback
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.intervalId = setInterval(this.fetchPosts, interval)
+  }
+
+  async fetchPosts (): Promise<void> {
+    const posts = await getPosts(undefined, this.params)
+    posts.reverse().forEach(post => {
+      if (post.date.getTime() > this.lastPostTime) {
+        return
+      }
+      this.callback(post)
+      this.lastPostTime = post.date.getTime()
+    })
+  }
+
+  stopListening (): void {
+    clearInterval(this.intervalId)
+  }
 }
