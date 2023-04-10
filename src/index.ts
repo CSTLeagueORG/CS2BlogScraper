@@ -91,7 +91,7 @@ export class UpdatesListener {
     this.params = params
     this.callback = callback
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.intervalId = setInterval(this.fetchPosts, interval)
+    this.intervalId = setInterval(this.fetchPosts.bind(this), interval)
     void this.fetchPosts()
   }
 
@@ -101,7 +101,9 @@ export class UpdatesListener {
       if (post.date.getTime() <= this.lastPostTime) {
         return
       }
-      this.callback(post)
+      try {
+        this.callback(post)
+      } catch (e) {}
       this.lastPostTime = post.date.getTime()
     })
   }

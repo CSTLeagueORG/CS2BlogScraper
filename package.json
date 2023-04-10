@@ -1,6 +1,6 @@
 {
   "name": "@cstleagueorg/cs2-blog-scraper",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "",
   "main": "dist/src/index.js",
   "scripts": {
