@@ -1,7 +1,7 @@
 {
   "name": "@cstleagueorg/cs2-blog-scraper",
-  "version": "2.0.2",
-  "description": "",
+  "version": "2.0.3",
+  "description": "Scrap-scrap",
   "main": "dist/src/index.js",
   "scripts": {
     "test": "jest",
@@ -10,6 +10,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint .",
     "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run lint",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags"
@@ -21,11 +22,11 @@
     "nodejs",
     "typescript",
     "jest",
-    "cheerio",
-    "csgo",
+    "cs2",
     "node-fetch"
   ],
   "author": "Sergey Zhirov <polarwolf@cstl.gg>",
+  "repository": "https://github.com/CSTLeagueORG/CS2BlogScraper",
   "license": "ISC",
   "devDependencies": {
     "@types/jest": "^29.2.3",
@@ -37,6 +38,7 @@
     "eslint-plugin-n": "^15.5.1",
     "eslint-plugin-promise": "^6.1.1",
     "jest": "^29.3.1",
+    "prettier": "^2.8.7",
     "ts-jest": "^29.0.3",
     "typescript": "^4.9.3"
   },
