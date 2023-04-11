@@ -85,27 +85,35 @@ export class UpdatesListener {
   private readonly intervalId: NodeJS.Timer
   private readonly params?: Partial<CSGOFetchParams>
   private readonly callback: (post: Post) => any
+  private readonly callbackError?: (e: unknown) => any
   private lastPostTime: number
-  constructor (callback: (post: Post) => any, interval: number = 600000, params?: Partial<CSGOFetchParams>, lastPostTime?: number) {
+  constructor (callback: (post: Post) => any, interval: number = 600000, params?: Partial<CSGOFetchParams>, lastPostTime?: number, callbackError?: (e: unknown) => any) {
     this.lastPostTime = lastPostTime ?? Date.now()
     this.params = params
     this.callback = callback
+    this.callbackError = callbackError
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(this.fetchPosts.bind(this), interval)
     void this.fetchPosts()
   }
 
   async fetchPosts (): Promise<void> {
-    const posts = await getPosts(undefined, this.params)
-    posts.reverse().forEach(post => {
-      if (post.date.getTime() <= this.lastPostTime) {
-        return
-      }
-      try {
+    try {
+      const posts = await getPosts(undefined, this.params)
+      posts.reverse().forEach(post => {
+        if (post.date.getTime() <= this.lastPostTime) {
+          return
+        }
         this.callback(post)
-      } catch (e) {}
-      this.lastPostTime = post.date.getTime()
-    })
+        this.lastPostTime = post.date.getTime()
+      })
+    } catch (e) {
+      if (this.callbackError) {
+        try {
+          this.callbackError(e)
+        } catch (e) {}
+      }
+    }
   }
 
   stopListening (): void {

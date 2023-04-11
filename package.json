@@ -1,7 +1,8 @@
 {
   "name": "@cstleagueorg/cs2-blog-scraper",
-  "version": "2.0.3",
+  "version": "2.1.2",
   "description": "Scrap-scrap",
+  "homepage": "https://github.com/CSTLeagueORG/CS2BlogScraper#readme",
   "main": "dist/src/index.js",
   "scripts": {
     "test": "jest",
@@ -26,7 +27,10 @@
     "node-fetch"
   ],
   "author": "Sergey Zhirov <polarwolf@cstl.gg>",
-  "repository": "https://github.com/CSTLeagueORG/CS2BlogScraper",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CSTLeagueORG/CS2BlogScraper.git"
+  },
   "license": "ISC",
   "devDependencies": {
     "@types/jest": "^29.2.3",
