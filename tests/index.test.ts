@@ -7,7 +7,12 @@ describe('getBlogPosts', () => {
   })
 
   it('should return an array of ukrainian posts', async () => {
-    const posts = await getBlogPosts()
+    const posts = await getBlogPosts({ l: 'ukrainian' }, { announcement_body: { language: 26 } })
+    expect(posts).toBeInstanceOf(Array)
+  })
+
+  it('should return an array of russian posts', async () => {
+    const posts = await getBlogPosts({ l: 'russian' }, { announcement_body: { language: 8 } })
     expect(posts).toBeInstanceOf(Array)
   })
 
@@ -22,7 +27,7 @@ describe('getUpdatePosts', () => {
     expect(posts).toBeInstanceOf(Array)
   })
   it('should return an array of ukrainian posts', async () => {
-    const posts = await getUpdatePosts({ l: 'ukrainian' })
+    const posts = await getUpdatePosts({ l: 'ukrainian' }, { announcement_body: { language: 26 } })
     expect(posts).toBeInstanceOf(Array)
   })
 

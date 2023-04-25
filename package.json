@@ -1,7 +1,7 @@
 {
   "name": "@cstleagueorg/cs2-blog-scraper",
-  "version": "2.1.2",
-  "description": "Scrap-scrap",
+  "version": "2.2.0",
+  "description": "Utils for watching for CS2 blog updates",
   "homepage": "https://github.com/CSTLeagueORG/CS2BlogScraper#readme",
   "main": "dist/src/index.js",
   "scripts": {
@@ -24,6 +24,7 @@
     "typescript",
     "jest",
     "cs2",
+    "csgo",
     "node-fetch"
   ],
   "author": "Sergey Zhirov <polarwolf@cstl.gg>",

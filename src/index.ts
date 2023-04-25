@@ -24,18 +24,33 @@ const INITIAL_FETCH_PARAMS = {
  * Uses this url: "https://www.counter-strike.net/news/"
  * @returns {Promise<Post[]>}
  * @param params
+ * @param postsFilter
  */
-export async function getBlogPosts (params?: Partial<CSGOFetchParams>): Promise<Post[]> {
-  return await getPosts(TYPE_IDS.blog, params)
+export async function getBlogPosts (params?: Partial<CSGOFetchParams>, postsFilter?: CSGOPostFilter): Promise<Post[]> {
+  return await getPosts(TYPE_IDS.blog, params, postsFilter)
 }
 
 /**
  * Uses this url: https://www.counter-strike.net/news/updates/
  * @returns {Promise<Post[]>}
  * @param params
+ * @param postsFilter
  */
-export async function getUpdatePosts (params?: Partial<CSGOFetchParams>): Promise<Post[]> {
-  return await getPosts(TYPE_IDS.updates, params)
+export async function getUpdatePosts (params?: Partial<CSGOFetchParams>, postsFilter?: CSGOPostFilter): Promise<Post[]> {
+  return await getPosts(TYPE_IDS.updates, params, postsFilter)
+}
+
+function filterPost (postsFilter: CSGOPostFilter, post: any, recursionDepth = 1): boolean {
+  if (recursionDepth > 5) {
+    return false
+  }
+  return Object.keys(postsFilter).every(key => (
+    typeof post === 'object' &&
+    (typeof postsFilter[key] === 'object'
+      ? filterPost(postsFilter[key], post[key], recursionDepth + 1)
+      : postsFilter[key] === post[key]
+    )
+  ))
 }
 
 /**
@@ -43,16 +58,16 @@ export async function getUpdatePosts (params?: Partial<CSGOFetchParams>): Promis
  * @returns {Promise<Post[]>}
  * @param category
  * @param params
+ * @param postsFilter
  */
-export default async function getPosts (category?: number, params?: Partial<CSGOFetchParams>): Promise<Post[]> {
+export default async function getPosts (category?: number, params?: Partial<CSGOFetchParams>, postsFilter: CSGOPostFilter = {}): Promise<Post[]> {
   const res = await fetch(URL + new URLSearchParams({ ...INITIAL_FETCH_PARAMS, ...params } as unknown as Record<string, string>).toString(), {
     headers: {
       Accept: 'application/json'
     }
   })
   const data = await res.json()
-  if ((params?.offset ?? 0) > 100) console.log(await res.text())
-  return data.events.filter((post: any) => !category || post.event_type === category).map((post: any) => {
+  return data.events.filter((post: any) => (!category || post.event_type === category) && filterPost(postsFilter, post)).map((post: any) => {
     const image: string | undefined = JSON.parse(post.jsondata ?? '{}').localized_capsule_image[0]
     return {
       title: post.announcement_body.headline,
@@ -73,6 +88,10 @@ export interface CSGOFetchParams {
   origin: 'https://www.counter-strike.net' | string
 }
 
+export interface CSGOPostFilter {
+  [key: string]: any
+}
+
 export interface Post {
   title: string
   link: string
@@ -84,14 +103,16 @@ export interface Post {
 export class UpdatesListener {
   private readonly intervalId: NodeJS.Timer
   private readonly params?: Partial<CSGOFetchParams>
+  private readonly postsFilter: CSGOPostFilter
   private readonly callback: (post: Post) => any
   private readonly callbackError?: (e: unknown) => any
   private lastPostTime: number
-  constructor (callback: (post: Post) => any, interval: number = 600000, params?: Partial<CSGOFetchParams>, lastPostTime?: number, callbackError?: (e: unknown) => any) {
+  constructor (callback: (post: Post) => any, interval: number = 600000, params?: Partial<CSGOFetchParams>, lastPostTime?: number, callbackError?: (e: unknown) => any, postsFilter: CSGOPostFilter = {}) {
     this.lastPostTime = lastPostTime ?? Date.now()
     this.params = params
     this.callback = callback
     this.callbackError = callbackError
+    this.postsFilter = postsFilter
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(this.fetchPosts.bind(this), interval)
     void this.fetchPosts()
@@ -99,7 +120,7 @@ export class UpdatesListener {
 
   async fetchPosts (): Promise<void> {
     try {
-      const posts = await getPosts(undefined, this.params)
+      const posts = await getPosts(undefined, this.params, this.postsFilter)
       posts.reverse().forEach(post => {
         if (post.date.getTime() <= this.lastPostTime) {
           return
